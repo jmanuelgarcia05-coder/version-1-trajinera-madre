@@ -12,15 +12,17 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
-// Nota: En producción, deberás instalar @stripe/stripe-react-native
-// y configurar el StripeProvider en tu App.tsx / _layout.tsx
-
 export default function CheckoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { total, nombre, experiencia, reservaId } = params;
-  const [loading, setLoading] = useState(false);
+  
+  const granTotal = parseFloat(params.total as string || "0");
+  const baseTotal = parseFloat(params.baseTotal as string || "0");
+  const serviciosTotal = parseFloat(params.serviciosTotal as string || "0");
+  const experiencia = params.experiencia as string || "Viaje en Trajinera";
+  const reservaId = params.reservaId as string;
 
+  const [loading, setLoading] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
@@ -34,25 +36,20 @@ export default function CheckoutScreen() {
     setLoading(true);
 
     try {
-      // 1. Aquí llamaríamos a tu Edge Function de Supabase para crear el PaymentIntent
-      // const { data, error } = await supabase.functions.invoke('create-payment-intent', { body: { amount: total } });
-      
-      // 2. Simulación de procesamiento real con Stripe
+      // Simulación de procesamiento real con Stripe
       setTimeout(async () => {
-        // Marcamos la reserva como pagada en la base de datos
         if (reservaId) {
-          const { error: updateError } = await supabase
+          const { error } = await supabase
             .from("reservas")
-            .update({ pagado: true, estado: 'confirmada' })
+            .update({ pagado: true, estado: 'confirmada', monto_total: granTotal })
             .eq("id", reservaId);
-            
-          if (updateError) throw updateError;
+          if (error) throw error;
         }
 
         setLoading(false);
         Alert.alert(
           "💰 ¡Pago Exitoso!",
-          `Se han procesado $${total} MXN para tu experiencia: ${experiencia}.`,
+          `Se han procesado $${granTotal} MXN para tu aventura.`,
           [{ text: "Comenzar Aventura", onPress: () => router.replace("/usuario") }]
         );
       }, 2500);
@@ -65,15 +62,30 @@ export default function CheckoutScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Text style={styles.backText}>← Volver</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Finalizar Pago</Text>
-      <Text style={styles.subtitle}>Confirma los detalles de tu aventura</Text>
+      <Text style={styles.subtitle}>Resumen de tu experiencia personalizada</Text>
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>{experiencia}</Text>
-        <Text style={styles.summaryDetail}>👤 Para: {nombre}</Text>
+        
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Costo Trajinera</Text>
+          <Text style={styles.detailValue}>${baseTotal}</Text>
+        </View>
+
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Servicios a Bordo</Text>
+          <Text style={styles.detailValue}>${serviciosTotal}</Text>
+        </View>
+
         <View style={styles.divider} />
-        <Text style={styles.totalLabel}>Total a pagar</Text>
-        <Text style={styles.totalAmount}>${total} MXN</Text>
+        
+        <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
+        <Text style={styles.totalAmount}>${granTotal} MXN</Text>
       </View>
 
       <View style={styles.cardForm}>
@@ -125,13 +137,12 @@ export default function CheckoutScreen() {
         {loading ? (
           <ActivityIndicator color="#000" />
         ) : (
-          <Text style={styles.payButtonText}>Confirmar y Pagar</Text>
+          <Text style={styles.payButtonText}>Confirmar y Pagar ${granTotal}</Text>
         )}
       </TouchableOpacity>
 
       <View style={styles.footer}>
-        <Text style={styles.securityText}>🔒 Encriptación SSL de 256 bits</Text>
-        <Text style={styles.stripeText}>Powered by STRIPE</Text>
+        <Text style={styles.securityText}>🔒 Pago Seguro Encriptado</Text>
       </View>
     </ScrollView>
   );
@@ -140,47 +151,24 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   content: { padding: 25, paddingTop: 60 },
+  backBtn: { marginBottom: 20 },
+  backText: { color: '#F8D36B', fontWeight: '900' },
   title: { color: "#fff", fontSize: 32, fontWeight: "900" },
   subtitle: { color: "#666", fontSize: 16, marginBottom: 30, fontWeight: "600" },
-  summaryCard: {
-    backgroundColor: "#111",
-    padding: 25,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#222",
-    marginBottom: 30,
-  },
-  summaryTitle: { color: "#F8D36B", fontSize: 22, fontWeight: "900", marginBottom: 5 },
-  summaryDetail: { color: "#888", fontSize: 14, fontWeight: "600" },
+  summaryCard: { backgroundColor: "#111", padding: 25, borderRadius: 25, borderWidth: 1, borderColor: "#222", marginBottom: 30 },
+  summaryTitle: { color: "#F8D36B", fontSize: 20, fontWeight: "900", marginBottom: 20 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  detailLabel: { color: '#666', fontWeight: '700', fontSize: 14 },
+  detailValue: { color: '#fff', fontWeight: '900', fontSize: 14 },
   divider: { height: 1, backgroundColor: "#222", marginVertical: 20 },
-  totalLabel: { color: "#666", fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
-  totalAmount: { color: "#fff", fontSize: 38, fontWeight: "900", marginTop: 5 },
+  totalLabel: { color: "#666", fontSize: 10, fontWeight: "900", textTransform: "uppercase" },
+  totalAmount: { color: "#fff", fontSize: 36, fontWeight: "900", marginTop: 5 },
   cardForm: { gap: 20, marginBottom: 40 },
-  label: { color: "#888", fontSize: 13, fontWeight: "900", marginBottom: 8, marginLeft: 5 },
-  input: {
-    backgroundColor: "#050505",
-    color: "#fff",
-    height: 60,
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "#222",
-    fontSize: 16,
-  },
+  label: { color: "#888", fontSize: 13, fontWeight: "900", marginBottom: 8 },
+  input: { backgroundColor: "#050505", color: "#fff", height: 60, borderRadius: 18, paddingHorizontal: 20, borderWidth: 1, borderColor: "#222" },
   row: { flexDirection: "row" },
-  payButton: {
-    backgroundColor: "#F8D36B",
-    height: 65,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#F8D36B",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-  },
+  payButton: { backgroundColor: "#F8D36B", height: 65, borderRadius: 20, justifyContent: "center", alignItems: "center" },
   payButtonText: { color: "#000", fontSize: 18, fontWeight: "900" },
   footer: { marginTop: 30, alignItems: 'center' },
-  securityText: { color: "#444", fontSize: 12, fontWeight: "700" },
-  stripeText: { color: "#6772E5", fontSize: 14, fontWeight: "900", marginTop: 5, letterSpacing: 1 },
+  securityText: { color: "#444", fontSize: 12, fontWeight: "700" }
 });
