@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "TrajinerApp",
+    "slug": "trajinerapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "trajinerapp",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trajinerapp.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "TrajinerApp necesita tu ubicación para mostrarte las trajineras cercanas y rastrear tu viaje en tiempo real.",
+        "NSLocationAlwaysUsageDescription": "Permite que TrajinerApp rastree tu ubicación para el servicio de emergencia SOS y logística de viaje.",
+        "NSCameraUsageDescription": "Necesitamos acceso a tu cámara para que puedas subir fotos de tus documentos de identificación.",
+        "NSPhotoLibraryUsageDescription": "Necesitamos acceso a tu galería para que elijas fotos de tus documentos o perfil."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#050505"
+      },
+      "package": "com.trajinerapp.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#050505"
+        }
+      ],
+      "expo-notifications",
+      "expo-location",
+      "expo-image-picker",
+      "expo-font",
+      "expo-image"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "TU_PROJECT_ID_AQUI"
+      }
+    }
+  }
+}
