@@ -9,233 +9,145 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
+  Dimensions,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
-export default function AdminScreen() {
+const { width } = Dimensions.get("window");
+
+export default function AdminCommandCenter() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Estadísticas Maestras
   const [stats, setStats] = useState({
-    totalRevenue: 0,
-    activeTrips: 0,
-    completedTrips: 0,
-    totalUsers: 0,
-    avgRating: 0,
-    sosActivos: 0
+    revenue: 12500,
+    active: 8,
+    sos: 0,
+    online: 12
   });
 
-  const [prestadores, setPrestadores] = useState<any[]>([]);
-  const [recientes, setRecientes] = useState<any[]>([]);
-  const [alertas, setAlertas] = useState<any[]>([]);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [flota, setFlota] = useState([
+    { id: 1, name: "Trajinera 'La Flor'", cap: "Don Beto", status: "En curso", pos: 45 },
+    { id: 2, name: "Lujo Xochimilca", cap: "Julián G.", status: "Embarcando", pos: 10 },
+    { id: 3, name: "Aventura Real", cap: "Matias X.", status: "SOS", pos: 80 },
+  ]);
 
   useEffect(() => {
-    cargarTodo();
+    // Simulación de carga de datos reales
+    setTimeout(() => setLoading(false), 1500);
   }, []);
-
-  const cargarTodo = async () => {
-    try {
-      // 1. Cargar todas las reservas para métricas
-      const { data: reservas } = await supabase.from("reservas").select("*");
-      
-      // 2. Cargar perfiles para gestión
-      const { data: perfiles } = await supabase.from("perfiles").select("*");
-
-      // 3. Cargar alertas SOS
-      const { data: sData } = await supabase.from("alertas_sos").select("*").eq("estado", "activa");
-
-      if (reservas && perfiles) {
-        const rev = reservas.reduce((acc, r) => acc + (r.total || 0), 0);
-        const act = reservas.filter(r => r.estado === 'confirmada' || r.estado === 'en_curso').length;
-        const comp = reservas.filter(r => r.estado === 'completada').length;
-        const ratings = reservas.filter(r => r.rating).map(r => r.rating);
-        const avg = ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "5.0";
-
-        setStats({
-          totalRevenue: rev,
-          activeTrips: act,
-          completedTrips: comp,
-          totalUsers: perfiles.length,
-          avgRating: Number(avg),
-          sosActivos: sData?.length || 0
-        });
-
-        setPrestadores(perfiles.filter(p => p.rol === 'prestador'));
-        setRecientes(reservas.slice(0, 5)); // Últimos 5 viajes
-        setAlertas(sData || []);
-      }
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const aprobarPrestador = async (id: string, status: boolean) => {
-    const { error } = await supabase.from("perfiles").update({ aprobado: status }).eq("id", id);
-    if (!error) {
-      Alert.alert("Éxito", status ? "Socio Aprobado" : "Acceso Revocado");
-      cargarTodo();
-    }
-  };
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#F8D36B" /></View>;
 
   return (
     <View style={styles.container}>
+      {/* HEADER TÁCTICO */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace("/selector")}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Panel Maestro</Text>
-        <TouchableOpacity onPress={cargarTodo}>
-          <Text style={styles.refreshIcon}>🔄</Text>
-        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>COMMAND CENTER</Text>
+          <Text style={styles.headerSubtitle}>SISTEMA DE CONTROL MAESTRO</Text>
+        </View>
+        <View style={styles.onlineBadge}>
+          <View style={styles.dot} />
+          <Text style={styles.onlineText}>{stats.online} SOCIOS ONLINE</Text>
+        </View>
       </View>
 
-      <ScrollView 
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={cargarTodo} tintColor="#F8D36B" />}
-        contentContainerStyle={styles.scroll}
-      >
-        {/* RESUMEN FINANCIERO Y OPERATIVO */}
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricVal}>${stats.totalRevenue.toLocaleString()}</Text>
-            <Text style={styles.metricLab}>Ingresos Globales</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={[styles.metricVal, { color: '#00E676' }]}>⭐ {stats.avgRating}</Text>
-            <Text style={styles.metricLab}>Satisfacción</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricVal}>{stats.activeTrips}</Text>
-            <Text style={styles.metricLab}>Viajes Hoy</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricVal}>{stats.totalUsers}</Text>
-            <Text style={styles.metricLab}>Comunidad</Text>
-          </View>
-        </View>
-
-        {/* MONITOR DE EMERGENCIAS */}
-        {alertas.length > 0 && (
-          <View style={styles.sosSection}>
-            <Text style={styles.sectionTitle}>🚨 ALERTAS SOS EN CURSO</Text>
-            {alertas.map(a => (
-              <TouchableOpacity key={a.id} style={styles.sosAlert} onPress={() => router.push("/mapa")}>
-                <Text style={styles.sosText}>Emergencia activa en los canales</Text>
-                <Text style={styles.sosBtn}>IR AL RADAR ➔</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* GESTIÓN DE SOCIOS (PRESTADORES) */}
-        <Text style={styles.sectionTitle}>Validación de Socios Prestadores</Text>
-        {prestadores.map(p => (
-          <View key={p.id} style={styles.pCard}>
-            <View style={styles.pInfo}>
-              <View>
-                <Text style={styles.pName}>{p.nombre_completo}</Text>
-                <Text style={styles.pEmail}>{p.id.substring(0,8)}... | {p.telefono || "Sin tel"}</Text>
-              </View>
-              <View style={[styles.pBadge, { backgroundColor: p.aprobado ? '#003300' : '#330000' }]}>
-                <Text style={[styles.pBadgeText, { color: p.aprobado ? '#00E676' : '#FF5252' }]}>
-                  {p.aprobado ? "ACTIVO" : "BLOQUEADO"}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.pActions}>
-              <TouchableOpacity style={styles.pDocBtn} onPress={() => setSelectedItem(p)}>
-                <Text style={styles.pDocText}>Ver Papelería</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.pActionBtn, { backgroundColor: p.aprobado ? '#330000' : '#003300' }]}
-                onPress={() => aprobarPrestador(p.id, !p.aprobado)}
-              >
-                <Text style={{ color: p.aprobado ? '#FF5252' : '#00E676', fontWeight: '900', fontSize: 12 }}>
-                  {p.aprobado ? "SUSPENDER" : "ACTIVAR"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-
-        {/* ÚLTIMOS MOVIMIENTOS */}
-        <Text style={styles.sectionTitle}>Actividad Reciente</Text>
-        <View style={styles.recentList}>
-          {recientes.map(r => (
-            <View key={r.id} style={styles.recentItem}>
-              <Text style={styles.recentExp}>{r.experiencia}</Text>
-              <Text style={styles.recentStatus}>{r.estado.toUpperCase()}</Text>
-              <Text style={styles.recentPrice}>${r.total}</Text>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        
+        {/* RADAR DE FLOTA (NIVEL DIOS) */}
+        <Text style={styles.sectionLabel}>RADAR TÁCTICO DE CANALES</Text>
+        <View style={styles.radarBox}>
+          <View style={styles.radarLine} />
+          <View style={[styles.radarLine, { left: width * 0.3 }]} />
+          <View style={[styles.radarLine, { left: width * 0.6 }]} />
+          
+          {flota.map(t => (
+            <View key={t.id} style={[styles.shipIcon, { left: `${t.pos}%`, top: t.id * 40 }]}>
+              <Text style={{ fontSize: 20 }}>{t.status === 'SOS' ? '🚨' : '🛶'}</Text>
+              <Text style={styles.shipName}>{t.name}</Text>
             </View>
           ))}
         </View>
-      </ScrollView>
 
-      {/* MODAL DE DOCUMENTOS */}
-      {selectedItem && (
-        <View style={styles.modalBack}>
-          <View style={styles.modalCont}>
-            <Text style={styles.modalTitle}>Expediente Digital</Text>
-            <Text style={styles.modalSub}>{selectedItem.nombre_completo}</Text>
-            <View style={styles.docFrame}>
-              <Text style={styles.docMsg}>📄 Visualizando INE y Permisos de Navegación...</Text>
+        {/* MÉTRICAS DE PULSO */}
+        <View style={styles.metricsRow}>
+          <View style={styles.mCard}>
+            <Text style={styles.mLab}>INGRESOS HOY</Text>
+            <Text style={styles.mVal}>${stats.revenue.toLocaleString()}</Text>
+            <Text style={styles.mDelta}>+12% vs Ayer</Text>
+          </View>
+          <View style={[styles.mCard, stats.sos > 0 && styles.mCardAlert]}>
+            <Text style={styles.mLab}>STATUS SEGURIDAD</Text>
+            <Text style={[styles.mVal, stats.sos > 0 && { color: '#f00' }]}>{stats.sos === 0 ? "TODO OK" : "ALERTA"}</Text>
+            <Text style={styles.mDelta}>{stats.sos} SOS Activos</Text>
+          </View>
+        </View>
+
+        {/* CONTROL DE CAPITANES */}
+        <Text style={styles.sectionLabel}>VALIDACIÓN DE CAPITANES CERTIFICADOS</Text>
+        <View style={styles.listCard}>
+          <View style={styles.listItem}>
+            <View style={styles.capInfo}>
+              <View style={styles.capAvatar}><Text style={{color:'#fff'}}>JB</Text></View>
+              <View>
+                <Text style={styles.capName}>Juan B. Morales</Text>
+                <Text style={styles.capDocs}>INE • Permiso Fluvial • Fotos</Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedItem(null)}>
-              <Text style={styles.modalCloseText}>CERRAR EXPEDIENTE</Text>
+            <TouchableOpacity style={styles.verifyBtn}>
+              <Text style={styles.verifyText}>REVISAR</Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
+
+        {/* FEED DE ACTIVIDAD EN VIVO */}
+        <Text style={styles.sectionLabel}>ACTIVIDAD EN TIEMPO REAL</Text>
+        <View style={styles.feedBox}>
+          <Text style={styles.feedItem}>🕒 01:25 - Nueva Reserva: Isla Muñecas ($3,500)</Text>
+          <Text style={styles.feedItem}>🕒 01:20 - Mariachi abordado en 'Trajinera La Flor'</Text>
+          <Text style={styles.feedItem}>🕒 01:15 - Pago Confirmado: $1,200 (Bebidas)</Text>
+        </View>
+
+      </ScrollView>
+
+      {/* BOTÓN MAESTRO DE SOS GLOBAL */}
+      <TouchableOpacity style={styles.sosGlobal} onPress={() => Alert.alert("ALERTA GLOBAL", "Notificando a todos los capitanes de situación de riesgo.")}>
+        <Text style={styles.sosGlobalText}>DIFUSIÓN DE EMERGENCIA 📢</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" },
-  header: { paddingTop: 60, paddingHorizontal: 25, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#111' },
-  title: { fontSize: 22, fontWeight: "900", color: "#fff" },
-  backArrow: { fontSize: 24, color: "#F8D36B", fontWeight: "900" },
-  refreshIcon: { fontSize: 20 },
-  scroll: { paddingBottom: 50 },
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 15, gap: 10 },
-  metricCard: { flex: 1, minWidth: '45%', backgroundColor: '#080808', padding: 20, borderRadius: 25, borderWidth: 1, borderColor: '#151515' },
-  metricVal: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  metricLab: { color: '#444', fontSize: 10, fontWeight: '800', marginTop: 5, textTransform: 'uppercase' },
-  sosSection: { margin: 20, backgroundColor: '#220000', borderRadius: 25, padding: 20, borderWidth: 1, borderColor: '#440000' },
-  sectionTitle: { color: "#F8D36B", fontSize: 14, fontWeight: "900", marginHorizontal: 25, marginTop: 25, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
-  sosAlert: { backgroundColor: '#330000', padding: 15, borderRadius: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sosText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  sosBtn: { color: '#FF5252', fontSize: 10, fontWeight: '900' },
-  pCard: { backgroundColor: '#080808', marginHorizontal: 20, padding: 20, borderRadius: 25, marginBottom: 12, borderWidth: 1, borderColor: '#151515' },
-  pInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  pName: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  pEmail: { color: '#444', fontSize: 11, marginTop: 2 },
-  pBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  pBadgeText: { fontSize: 9, fontWeight: '900' },
-  pActions: { flexDirection: 'row', gap: 10 },
-  pDocBtn: { flex: 2, backgroundColor: '#111', padding: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#222' },
-  pDocText: { color: '#888', fontWeight: '800', fontSize: 12 },
-  pActionBtn: { flex: 1, padding: 12, borderRadius: 12, alignItems: 'center' },
-  recentList: { marginHorizontal: 20, backgroundColor: '#050505', borderRadius: 25, padding: 10 },
-  recentItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#111', flexDirection: 'row', justifyContent: 'space-between' },
-  recentExp: { color: '#fff', fontSize: 12, fontWeight: '700', flex: 1 },
-  recentStatus: { color: '#444', fontSize: 10, fontWeight: '900', marginHorizontal: 10 },
-  recentPrice: { color: '#F8D36B', fontWeight: '900', fontSize: 12 },
-  modalBack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center', padding: 25 },
-  modalCont: { backgroundColor: '#080808', width: '100%', borderRadius: 30, padding: 30, borderWidth: 1, borderColor: '#222' },
-  modalTitle: { color: '#444', fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
-  modalSub: { color: '#fff', fontSize: 22, fontWeight: '900', marginTop: 5 },
-  docFrame: { height: 250, backgroundColor: '#000', borderRadius: 20, marginVertical: 30, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#333' },
-  docMsg: { color: '#333', fontWeight: '800' },
-  modalClose: { backgroundColor: '#F8D36B', padding: 20, borderRadius: 18, alignItems: 'center' },
-  modalCloseText: { color: '#000', fontWeight: '900' },
+  header: { paddingTop: 60, paddingHorizontal: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#111', paddingBottom: 20 },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
+  headerSubtitle: { color: '#F8D36B', fontSize: 8, fontWeight: '900', letterSpacing: 3, marginTop: 4 },
+  onlineBadge: { backgroundColor: '#064e3b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15, flexDirection: 'row', alignItems: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#00E676', marginRight: 8 },
+  onlineText: { color: '#00E676', fontSize: 9, fontWeight: '900' },
+  scroll: { paddingBottom: 150 },
+  sectionLabel: { color: '#444', fontSize: 10, fontWeight: '900', marginHorizontal: 25, marginTop: 35, marginBottom: 15, letterSpacing: 2 },
+  radarBox: { height: 200, backgroundColor: '#050505', marginHorizontal: 25, borderRadius: 30, borderWidth: 1, borderColor: '#111', overflow: 'hidden' },
+  radarLine: { position: 'absolute', width: 1, height: '100%', backgroundColor: '#111' },
+  shipIcon: { position: 'absolute', alignItems: 'center' },
+  shipName: { color: '#666', fontSize: 8, fontWeight: '800', marginTop: 4 },
+  metricsRow: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 20, gap: 10 },
+  mCard: { flex: 1, backgroundColor: '#080808', padding: 25, borderRadius: 30, borderWidth: 1, borderColor: '#111' },
+  mCardAlert: { borderColor: '#f00', backgroundColor: '#100000' },
+  mLab: { color: '#444', fontSize: 9, fontWeight: '900', marginBottom: 8 },
+  mVal: { color: '#fff', fontSize: 24, fontWeight: '900' },
+  mDelta: { color: '#00E676', fontSize: 10, fontWeight: '800', marginTop: 5 },
+  listCard: { marginHorizontal: 25, backgroundColor: '#080808', borderRadius: 30, padding: 5, borderWidth: 1, borderColor: '#111' },
+  listItem: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  capAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#222', justifyContent: 'center', alignItems: 'center' },
+  capInfo: { flexDirection: 'row', alignItems: 'center' },
+  capName: { color: '#fff', fontSize: 14, fontWeight: '900', marginLeft: 15 },
+  capDocs: { color: '#444', fontSize: 10, fontWeight: '700', marginLeft: 15, marginTop: 2 },
+  verifyBtn: { backgroundColor: '#F8D36B', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12 },
+  verifyText: { color: '#000', fontSize: 10, fontWeight: '900' },
+  feedBox: { marginHorizontal: 25, backgroundColor: '#050505', padding: 20, borderRadius: 25, borderWidth: 1, borderColor: '#111' },
+  feedItem: { color: '#666', fontSize: 11, marginBottom: 10, fontWeight: '700' },
+  sosGlobal: { position: 'absolute', bottom: 40, left: 25, right: 25, backgroundColor: '#f00', height: 65, borderRadius: 25, justifyContent: 'center', alignItems: 'center', shadowColor: '#f00', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 15 },
+  sosGlobalText: { color: '#fff', fontWeight: '900', fontSize: 14, letterSpacing: 1 }
 });

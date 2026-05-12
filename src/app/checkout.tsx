@@ -28,11 +28,7 @@ export default function CheckoutScreen() {
   const [cvv, setCvv] = useState("");
 
   const handlePayment = async () => {
-    if (cardNumber.length < 16 || expiry.length < 4 || cvv.length < 3) {
-      Alert.alert("Error", "Por favor completa los datos de la tarjeta.");
-      return;
-    }
-
+    // Validación desactivada para facilidad de la DEMO
     setLoading(true);
 
     try {
@@ -46,12 +42,12 @@ export default function CheckoutScreen() {
           if (error) throw error;
         }
 
+        // Navegar a la pantalla de éxito con el total para la calculadora
         setLoading(false);
-        Alert.alert(
-          "💰 ¡Pago Exitoso!",
-          `Se han procesado $${granTotal} MXN para tu aventura.`,
-          [{ text: "Comenzar Aventura", onPress: () => router.replace("/usuario") }]
-        );
+        router.push({
+          pathname: "/confirmacion",
+          params: { total: granTotal }
+        });
       }, 2500);
 
     } catch (error: any) {
